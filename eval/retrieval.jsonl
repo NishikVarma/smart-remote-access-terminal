@@ -1,0 +1,18 @@
+{"id":"r01","query":"Error: Cannot find module 'express'","relevant":["node-module-not-found"]}
+{"id":"r02","query":"ERR_MODULE_NOT_FOUND Cannot find package 'zod' imported from /app/src/index.js","relevant":["node-module-not-found"]}
+{"id":"r03","query":"EACCES: permission denied, open '/etc/hosts'","relevant":["permission-denied-eacces"]}
+{"id":"r04","query":"bash: ./deploy.sh: Permission denied","relevant":["permission-denied-eacces"]}
+{"id":"r05","query":"Error: listen EADDRINUSE: address already in use :::8080","relevant":["port-already-in-use"]}
+{"id":"r06","query":"connect ECONNREFUSED 127.0.0.1:5432","relevant":["connection-refused-timeout"]}
+{"id":"r07","query":"curl: (6) Could not resolve host: api.example.com","relevant":["connection-refused-timeout"]}
+{"id":"r08","query":"! [rejected] main -> main (non-fast-forward) error: failed to push some refs","relevant":["git-push-rejected-and-auth"]}
+{"id":"r09","query":"git@github.com: Permission denied (publickey). fatal: Could not read from remote repository.","relevant":["git-push-rejected-and-auth"]}
+{"id":"r10","query":"ModuleNotFoundError: No module named 'numpy'","relevant":["python-modulenotfound-venv"]}
+{"id":"r11","query":"FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory","relevant":["out-of-memory-heap"]}
+{"id":"r12","query":"ENOSPC: no space left on device, write","relevant":["disk-full-enospc"]}
+{"id":"r13","query":"Error: unable to verify the first certificate UNABLE_TO_VERIFY_LEAF_SIGNATURE","relevant":["ssl-certificate-errors"]}
+{"id":"r14","query":"Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?","relevant":["docker-daemon-not-running"]}
+{"id":"r15","query":"docker: permission denied while trying to connect to the Docker daemon socket","relevant":["docker-daemon-not-running"]}
+{"id":"r16","query":"npm ERR! code ELIFECYCLE npm ERR! errno 137 Killed","relevant":["out-of-memory-heap"]}
+{"id":"r17","query":"SSL: CERTIFICATE_VERIFY_FAILED certificate has expired","relevant":["ssl-certificate-errors"]}
+{"id":"r18","query":"I cannot push my branch, remote contains work that I do not have locally","relevant":["git-push-rejected-and-auth"]}

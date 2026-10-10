@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest';
+import { classifyCommand } from './command-risk.js';
+import { redact } from './redact.js';
+
+describe('classifyCommand', () => {
+  it('returns null when there is no command', () => {
+    expect(classifyCommand(null)).toBeNull();
+    expect(classifyCommand('  ')).toBeNull();
+  });
+
+  it.each([
+    'rm -rf /var/www',
+    'rm -fr build',
+    'del /s /q C:\\temp',
+    'Remove-Item C:\\data -Recurse -Force',
+    'git reset --hard HEAD~3',
+    'git push --force origin main',
+    'curl https://x.example/install.sh | bash',
+    'sudo apt remove nginx',
+    'DROP TABLE users;',
+    'format C:',
+  ])('flags %s as dangerous', (command) => {
+    expect(classifyCommand(command)).toBe('dangerous');
+  });
+
+  it.each(['ls -l', 'npm install', 'git status', 'netstat -ano | findstr :3000', 'df -h'])(
+    'marks %s for review, not dangerous',
+    (command) => {
+      expect(classifyCommand(command)).toBe('review');
+    },
+  );
+});
+
+describe('redact', () => {
+  it('removes common secret shapes and counts them', () => {
+    const input = [
+      'Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456',
+      'AWS key AKIAABCDEFGHIJKLMNOP in use',
+      'token=ghp_abcdefghijklmnopqrstuvwxyz0123456789',
+      'api_key: "s3cr3t-value"',
+      '-----BEGIN RSA PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END RSA PRIVATE KEY-----',
+    ].join('\n');
+    const { text, count } = redact(input);
+
+    expect(text).not.toMatch(
+      /abcdefghijklmnopqrstuvwxyz123456|AKIAABCDEFGHIJKLMNOP|ghp_|s3cr3t-value|MIIEvQ/,
+    );
+    expect(count).toBeGreaterThanOrEqual(5);
+  });
+
+  it('leaves ordinary log lines alone', () => {
+    const line = 'Error: listen EADDRINUSE: address already in use :::3000';
+    expect(redact(line)).toEqual({ text: line, count: 0 });
+  });
+});

@@ -1,0 +1,71 @@
+# smart-remote-access-terminal
+
+An AI troubleshooting companion for terminal output. Give it a log or an error; it returns a
+structured, evidence-grounded diagnosis, or says it cannot tell. It is designed to sit next to
+[remote-terminal-access](https://github.com/NishikVarma/remote-terminal-access), but it runs on
+its own and never executes anything.
+
+**Status: early.** Diagnosis pipeline, retrieval baseline and evaluation harness exist. The
+Anthropic adapter has not been exercised against the live API in this repository's tests.
+
+## What it does
+
+1. Takes a log (file or stdin). Keeps the tail of very long logs.
+2. **Redacts** obvious secrets (tokens, keys, passwords) before anything leaves the machine.
+3. **Retrieves** relevant troubleshooting notes from `docs-corpus/` (BM25 keyword search).
+4. Asks the model for a structured diagnosis (JSON validated with zod). Log text and documents are
+   passed as untrusted data, delimited so they cannot close the prompt's own tags.
+5. **Grounds** the answer in code: evidence quotes must appear verbatim in the log, cited sources
+   must be documents that were actually retrieved. Unverifiable claims are dropped; if nothing is
+   left it abstains.
+6. **Classifies suggested commands** as `review` or `dangerous` with deterministic rules. The model
+   never decides what is safe, and nothing is run.
+
+Provider failures (timeouts, rate limits, refusals, invalid output) become an explicit abstention
+with a cause, never a crash.
+
+## Quick start
+
+```
+npm install
+cp .env.example .env        # add ANTHROPIC_API_KEY (or use `ant auth login`)
+npm run diagnose -- path/to/error.log
+```
+
+## Checks and evaluation
+
+```
+npm run typecheck && npm run lint && npm run format:check && npm test
+npm run eval:retrieval      # BM25 baseline: Recall@k and MRR
+npm run eval:baseline       # keyword-rules baseline for categories
+```
+
+Current baseline numbers (author-written, small sets; see Limitations):
+
+| Measure                                     | Result                                       |
+| ------------------------------------------- | -------------------------------------------- |
+| BM25 retrieval, 18 queries, document level  | Recall@1 0.944, Recall@3 1.000, MRR 0.972    |
+| Rules baseline, category accuracy, easy set | 14 / 14                                      |
+| Rules baseline, category accuracy, hard set | 3 / 8 (rules frozen before the hard set ran) |
+
+LLM-based diagnosis has **not** been evaluated yet: it needs an API key and a held-out dataset.
+
+## Layout
+
+```
+src/diagnosis/   schema, prompt, redaction, grounding, command risk, diagnose()
+src/llm/         provider interface, Anthropic adapter, scripted test double
+src/retrieval/   chunking, BM25, metrics, corpus loader
+src/baseline/    keyword-rules baseline
+eval/            datasets (jsonl) and runners
+docs-corpus/     troubleshooting notes used for retrieval
+```
+
+## Limitations
+
+- Datasets are small and written by the author, who also wrote the corpus and the rules, so the
+  easy-set numbers are optimistic. A held-out set of real logs is needed before any claim.
+- Retrieval is keyword-only. Dense and hybrid retrieval (PostgreSQL full-text vs pgvector) are not
+  built yet, so there is no measured comparison.
+- Redaction is best effort and regex based; unusual secret formats pass through.
+- No streaming, no caching, no cost or latency tracking yet.

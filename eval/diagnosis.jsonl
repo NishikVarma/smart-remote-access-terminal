@@ -1,0 +1,22 @@
+{"id":"d01","category":"dependency","log":"Traceback (most recent call last):\n  File \"app.py\", line 3, in <module>\n    import pandas as pd\nModuleNotFoundError: No module named 'pandas'"}
+{"id":"d02","category":"dependency","log":"node:internal/modules/cjs/loader:1080\n  throw err;\n  ^\n\nError: Cannot find module './config'\nRequire stack:\n- /srv/app/index.js"}
+{"id":"d03","category":"permission","log":"npm ERR! code EACCES\nnpm ERR! syscall mkdir\nnpm ERR! path /usr/lib/node_modules/foo\nnpm ERR! Error: EACCES: permission denied, mkdir '/usr/lib/node_modules/foo'"}
+{"id":"d04","category":"permission","log":"PermissionError: [Errno 13] Permission denied: '/var/log/app.log'"}
+{"id":"d05","category":"network","log":"Error: connect ECONNREFUSED 127.0.0.1:6379\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)"}
+{"id":"d06","category":"network","log":"npm ERR! network request to https://registry.npmjs.org/left-pad failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org"}
+{"id":"d07","category":"network","log":"curl: (60) SSL certificate problem: certificate has expired"}
+{"id":"d08","category":"resource","log":"Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n    at Server.setupListenHandle [as _listen2] (node:net:1817:16)"}
+{"id":"d09","category":"resource","log":"<--- Last few GCs --->\nFATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"}
+{"id":"d10","category":"resource","log":"write /var/lib/docker/tmp/GetImageBlob: no space left on device"}
+{"id":"d11","category":"syntax","log":"/home/dev/app/server.js:42\n  }\n  ^\nSyntaxError: Unexpected token '}'\n    at wrapSafe (node:internal/modules/cjs/loader:1378:20)"}
+{"id":"d12","category":"runtime","log":"TypeError: Cannot read properties of undefined (reading 'map')\n    at render (/app/src/list.js:18:22)"}
+{"id":"d13","category":"configuration","log":"Error: Missing required environment variable DATABASE_URL\n    at loadConfig (/app/config.js:9:11)"}
+{"id":"d14","category":"unknown","log":"Process finished with exit code 1"}
+{"id": "h01", "category": "permission", "log": "EACCES: permission denied, open '/app/node_modules/.bin/webpack'\nError: Cannot find module 'webpack'\nBuild failed"}
+{"id": "h02", "category": "resource", "log": "Traceback (most recent call last):\n  File \"worker.py\", line 88, in fetch\nOSError: [Errno 24] Too many open files\nTimeoutError: request timed out after 30s"}
+{"id": "h03", "category": "configuration", "log": "Error: ENOENT: no such file or directory, open '/app/config.json'\n    at Object.openSync (node:fs:601:3)"}
+{"id": "h04", "category": "runtime", "log": "Exception in thread \"main\" java.lang.NullPointerException\n\tat com.acme.Main.main(Main.java:12)"}
+{"id": "h05", "category": "dependency", "log": "ERROR: Could not find a version that satisfies the requirement foo==9.9 (from versions: none)\nERROR: No matching distribution found for foo==9.9"}
+{"id": "h06", "category": "resource", "log": "docker: Error response from daemon: driver failed programming external connectivity: Error starting userland proxy: listen tcp4 0.0.0.0:80: bind: address already in use."}
+{"id": "h07", "category": "permission", "log": "Connection to 10.0.0.5 closed by remote host.\ngit@10.0.0.5: Permission denied (publickey)."}
+{"id": "h08", "category": "runtime", "log": "Segmentation fault (core dumped)"}
