@@ -1,5 +1,6 @@
 import type { DiagnosisResult } from '../../src/diagnosis/schema.js';
 import type { Shell, SuggestResult } from '../../src/suggest/suggest.js';
+import type { SummaryResult } from '../../src/summary/summarize.js';
 import type { ProviderView } from './lib.js';
 
 export interface ProviderInfo extends ProviderView {
@@ -14,6 +15,11 @@ export interface DiagnoseResponse {
 export interface SuggestResponse {
   provider: ProviderInfo;
   result: SuggestResult;
+}
+
+export interface SummaryResponse {
+  provider: ProviderInfo;
+  result: SummaryResult;
 }
 
 export class NotPaired extends Error {}
@@ -48,6 +54,13 @@ export function suggest(
   options: { provider: string; confirmCloud: boolean; shell: Shell; context?: string },
 ): Promise<SuggestResponse> {
   return postJson('/api/suggest', { instruction, ...options });
+}
+
+export function summarize(
+  output: string,
+  options: { provider: string; confirmCloud: boolean },
+): Promise<SummaryResponse> {
+  return postJson('/api/summary', { output, ...options });
 }
 
 export async function engine(path: string, init?: RequestInit): Promise<Response> {

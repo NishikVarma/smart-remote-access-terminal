@@ -185,6 +185,39 @@ try {
     await sleep(1500);
     check('Insert alone does not press Enter', (await lastRow()).endsWith(suggested));
   }
+
+  // Dangerous-command guard. The path does not exist, so even if the guard failed nothing would be deleted.
+  await page.keyboard.press('Escape'); // PSReadLine: clear the line (drops the inserted text)
+  await until(async () => (await lastRow()).endsWith('>'), 5_000); // wait for a clean prompt
+  await page.click('.xterm');
+  lastDialog = '';
+  const risky = String.raw`Remove-Item -Recurse -Force .\e2e-guard-nonexistent-dir`;
+  await page.keyboard.type(risky, { delay: 5 });
+  await page.keyboard.press('Enter');
+  await until(() => lastDialog !== '', 5_000);
+  check(
+    'a dangerous command triggers a confirmation naming it',
+    lastDialog.includes('looks dangerous') && lastDialog.includes('e2e-guard-nonexistent-dir'),
+    JSON.stringify(lastDialog.slice(0, 160)),
+  );
+  await sleep(1500);
+  check(
+    'declining keeps the command on the prompt line unexecuted',
+    (await lastRow()).endsWith(risky),
+  );
+  await page.keyboard.press('Escape');
+
+  // Catch-up summary on request (local model).
+  await (await buttonByText('Summarize recent activity')).click();
+  const summarised = await until(
+    () =>
+      page.evaluate(() => {
+        const text = document.querySelector('#ai')?.textContent ?? '';
+        return text.includes('Terminal state') || text.includes('Could not summarise');
+      }),
+    150_000,
+  );
+  check('summary of recent activity renders', Boolean(summarised));
 } finally {
   await browser.close();
   stop();

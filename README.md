@@ -59,6 +59,7 @@ npm run serve                  # http://127.0.0.1:8788, loopback only
 GET  /api/providers            # which providers are configured, local vs cloud
 POST /api/diagnose             # { log, provider?, confirmCloud? } -> { provider, result }
 POST /api/suggest              # { instruction, shell?, context?, provider?, confirmCloud? } -> { provider, result }
+POST /api/summary              # { output, provider?, confirmCloud? } -> { provider, result }
 ```
 
 The server checks Host and Origin on every request so other web pages cannot spend your quota.
@@ -117,7 +118,7 @@ npm run serve          # serves the app, the AI API and the /engine proxy on htt
 Open http://localhost:8788, pair with the code shown by the engine, and use the terminal. The **AI** button
 opens a panel: pick a provider (the badge says whether text stays on this PC or goes to the cloud), then
 **Explain selection** or **Explain last output**. The **Ask** row turns a request such as "what is using port 3000" into up to three command candidates, each with a risk label computed in code. **Insert** types a candidate at the prompt so you can read it and press Enter yourself; **Run** types it and presses Enter (dangerous ones ask again). Cloud providers always ask for confirmation first and
-say what will be sent. Nothing is typed into the terminal unless you press Insert or Run.
+say what will be sent. Nothing is typed into the terminal unless you press Insert or Run. **Summarize recent activity** gives a short, quote-checked digest of the last output (and is offered after a reconnect). A **dangerous-command guard** asks before a command such as `Remove-Item -Recurse` or `git push --force` is submitted; it is a typo guard for phone typing, not a security boundary.
 
 `npm run e2e:browser` drives the whole flow in a real Chrome/Edge against the real engine.
 

@@ -40,7 +40,9 @@ function showPairing(): void {
 // Pairing is the engine's job; this page only shows its form when the engine says "unauthorized".
 engine('/sessions/none')
   .then(() => {
-    const terminal = openTerminal(terminalRoot, showPairing);
-    mountAiPanel(aiRoot, terminal);
+    // The terminal exists before the panel does, so the reconnect hook is filled in afterwards.
+    const hooks = { onReconnected: () => {} };
+    const terminal = openTerminal(terminalRoot, showPairing, () => hooks.onReconnected());
+    hooks.onReconnected = mountAiPanel(aiRoot, terminal).notifyReconnected;
   })
   .catch(() => showPairing());

@@ -6,6 +6,7 @@ import type { StructuredModel } from '../llm/provider.js';
 import type { ProviderInfo, ProviderName } from '../llm/registry.js';
 import type { Bm25Index } from '../retrieval/bm25.js';
 import { SHELLS, suggestCommands } from '../suggest/suggest.js';
+import { summarizeOutput } from '../summary/summarize.js';
 import { attachEngineWebSocketProxy, ENGINE_PREFIX, engineHttpProxy } from './engine-proxy.js';
 import { makeGuard } from './guard.js';
 
@@ -44,6 +45,12 @@ const suggestBody = z.object({
   shell: z.enum(SHELLS).optional(),
   /** Recent terminal output, sent only when the user chose to include it. */
   context: z.string().max(50_000).optional(),
+  ...providerFields,
+});
+
+const summaryBody = z.object({
+  /** Recent terminal output the user chose to have summarised. */
+  output: z.string().min(1).max(200_000),
   ...providerFields,
 });
 
@@ -130,6 +137,24 @@ export function createSmartServer({
         `chars=${body.data.instruction.length} context=${body.data.context?.length ?? 0} ` +
         `outcome=${result.ok ? `ok:${result.suggestions.length}` : result.cause} ` +
         `ms=${Date.now() - started}`,
+    );
+    res.json({ provider: chosen.info, result });
+  });
+
+  app.post('/api/summary', async (req, res) => {
+    const body = summaryBody.safeParse(req.body);
+    if (!body.success) return void res.status(400).json({ error: 'invalid_request' });
+    const chosen = choose(body.data, res);
+    if (!chosen) return;
+
+    const started = Date.now();
+    const result = await summarizeOutput(body.data.output, {
+      model: chosen.model,
+      timeoutMs: timeoutFor(chosen.info),
+    });
+    log(
+      `summary provider=${chosen.name} privacy=${chosen.info.privacy} chars=${body.data.output.length} ` +
+        `outcome=${result.ok ? 'ok' : result.cause} ms=${Date.now() - started}`,
     );
     res.json({ provider: chosen.info, result });
   });

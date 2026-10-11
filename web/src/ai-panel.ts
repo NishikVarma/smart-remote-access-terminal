@@ -4,9 +4,11 @@ import {
   diagnose,
   getProviders,
   suggest,
+  summarize,
   type DiagnoseResponse,
   type ProviderInfo,
   type SuggestResponse,
+  type SummaryResponse,
 } from './api.js';
 import { abstainText, prepareInput, privacyNotice, type ApprovalMode } from './lib.js';
 import type { TerminalHandle } from './terminal.js';
@@ -83,7 +85,10 @@ function renderResponse(response: DiagnoseResponse): HTMLElement {
 }
 
 /** A collapsible panel with "explain" actions. Nothing is sent until a button is pressed. */
-export function mountAiPanel(panel: HTMLElement, terminal: TerminalHandle): void {
+export function mountAiPanel(
+  panel: HTMLElement,
+  terminal: TerminalHandle,
+): { notifyReconnected: () => void } {
   const toggle = el('button', 'AI');
   toggle.id = 'ai-toggle';
   document.body.append(toggle);
@@ -93,8 +98,14 @@ export function mountAiPanel(panel: HTMLElement, terminal: TerminalHandle): void
   const badge = el('span', '', 'badge');
   const explainSelection = el('button', 'Explain selection');
   const explainLast = el('button', 'Explain last output');
+  const summarizeButton = el('button', 'Summarize recent activity');
+  const guardBox = el('input');
+  guardBox.type = 'checkbox';
+  guardBox.checked = true;
+  const guardLabel = el('label', ' warn before dangerous commands');
+  guardLabel.prepend(guardBox);
   const controls = el('div', '', 'row');
-  controls.append(select, badge, explainSelection, explainLast);
+  controls.append(select, badge, explainSelection, explainLast, summarizeButton, guardLabel);
   const output = el('div');
 
   // "Ask": natural language -> commands. Nothing is typed into the terminal until a button is pressed.
@@ -244,4 +255,80 @@ export function mountAiPanel(panel: HTMLElement, terminal: TerminalHandle): void
   }
   explainSelection.onclick = () => void run(terminal.selection());
   explainLast.onclick = () => void run(terminal.tail(60));
+
+  function renderSummary(response: SummaryResponse): HTMLElement {
+    const box = el('div');
+    const header = el('div', '', 'row');
+    header.append(
+      el('span', 'Handled by'),
+      el('strong', response.provider.label),
+      el('span', response.provider.privacy, `badge ${response.provider.privacy}`),
+    );
+    box.append(header);
+
+    const result = response.result;
+    if (!result.ok) {
+      box.append(el('p', result.reason));
+      return box;
+    }
+    const s = result.summary;
+    box.append(el('p', s.overview), el('p', `Terminal state: ${s.state}`, 'muted'));
+    if (s.commands.length > 0) {
+      box.append(el('h4', 'Commands that ran'));
+      for (const c of s.commands) box.append(el('div', `> ${c}`));
+    }
+    if (s.problems.length > 0) {
+      box.append(el('h4', 'Problems'));
+      for (const p of s.problems) {
+        const item = el('div', p.description);
+        const q = el('blockquote');
+        q.append(el('code', p.evidence));
+        item.append(q);
+        box.append(item);
+      }
+    }
+    const notes: string[] = [];
+    if (s.droppedClaims > 0) notes.push(`${s.droppedClaims} unverifiable claim(s) were dropped`);
+    if (s.redactions > 0) notes.push(`${s.redactions} secret(s) were redacted before sending`);
+    if (s.truncatedInput) notes.push('only the most recent output was used');
+    if (notes.length > 0) box.append(el('div', notes.join('; '), 'muted'));
+    return box;
+  }
+
+  async function summarizeRecent(): Promise<void> {
+    const provider = current();
+    const text = terminal.tail(200);
+    if (!provider) return void output.replaceChildren(el('p', 'No provider is configured.'));
+    if (text.trim() === '')
+      return void output.replaceChildren(el('p', 'Nothing to summarise yet.'));
+    if (provider.privacy === 'cloud' && !confirm(privacyNotice(provider, text.length))) return;
+
+    output.replaceChildren(el('p', `Asking ${provider.label}...`, 'muted'));
+    try {
+      const response = await summarize(text, {
+        provider: provider.name,
+        confirmCloud: provider.privacy === 'cloud',
+      });
+      output.replaceChildren(renderSummary(response));
+    } catch (error) {
+      output.replaceChildren(el('p', (error as Error).message));
+    }
+  }
+  summarizeButton.onclick = () => void summarizeRecent();
+  summarizeButton.addEventListener('pointerdown', (e) => e.preventDefault());
+
+  guardBox.onchange = () => terminal.setGuard(guardBox.checked);
+
+  return {
+    // After a reconnect the screen was repainted from the engine's buffer. Offer a summary,
+    // but send nothing until the user asks.
+    notifyReconnected: () => {
+      panel.hidden = false;
+      const note = el('div', '', 'row');
+      const again = el('button', 'Summarize what happened');
+      again.onclick = () => void summarizeRecent();
+      note.append(el('span', 'Reconnected to the session.'), again);
+      output.replaceChildren(note);
+    },
+  };
 }
