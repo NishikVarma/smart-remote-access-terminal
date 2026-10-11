@@ -22,12 +22,33 @@ const DANGEROUS: RegExp[] = [
 ];
 
 const NO_COMMAND = new Set(['', 'null', 'none', 'n/a', 'na', '-', 'no command']);
+const MAX_COMMAND_CHARS = 500;
+const TAB = 0x09;
+const DEL = 0x7f;
 
-/** Models sometimes return the text "null" or "none" instead of a real null. */
+/**
+ * Control characters other than tab. Newlines would run several commands; carriage returns and
+ * escape sequences can make a terminal show something different from what is executed.
+ */
+function hasControlCharacters(text: string): boolean {
+  for (const ch of text) {
+    const code = ch.codePointAt(0)!;
+    if ((code < 0x20 && code !== TAB) || code === DEL) return true;
+  }
+  return false;
+}
+
+/**
+ * The command as it may be shown and typed, or null when there is none or it is not safe to show:
+ * models sometimes return the text "null"; control characters and newlines are never allowed, so
+ * what the user reads is exactly what would be sent to the terminal.
+ */
 export function normalizeCommand(command: string | null | undefined): string | null {
   if (command === null || command === undefined) return null;
   const trimmed = command.trim();
-  return NO_COMMAND.has(trimmed.toLowerCase()) ? null : trimmed;
+  if (NO_COMMAND.has(trimmed.toLowerCase())) return null;
+  if (trimmed.length > MAX_COMMAND_CHARS || hasControlCharacters(trimmed)) return null;
+  return trimmed;
 }
 
 /**

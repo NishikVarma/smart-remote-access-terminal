@@ -106,7 +106,9 @@ try {
   check('typed command runs and its output is shown', Boolean(echoed));
 
   await page.click('#ai-toggle');
-  const options = await page.$$eval('#ai select option', (o) => o.map((x) => x.textContent));
+  const options = await page.$$eval('#ai select', (selects) =>
+    [...selects[0].options].map((x) => x.textContent),
+  );
   check('provider list shows local and cloud options', options.length >= 2, options.join(' | '));
 
   // Cloud provider: the consent dialog must name the data leaving the machine, and cancel must send nothing.
@@ -138,6 +140,51 @@ try {
     150_000,
   );
   check('local explanation returns a visible result', Boolean(answered));
+
+  // Natural language -> command. Only "Insert" is exercised: it types the text without pressing Enter,
+  // so nothing a model chose is ever executed by this test.
+  const buttonByText = async (text) => {
+    for (const handle of await page.$$('#ai button')) {
+      if ((await handle.evaluate((b) => b.textContent)) === text) return handle;
+    }
+    return null;
+  };
+  const lastRow = () =>
+    page.evaluate(() => {
+      const rowsText = [...document.querySelectorAll('.xterm-rows > div')]
+        .map((d) => (d.textContent ?? '').replace(/\s/g, ' '))
+        .filter((t) => t.trim() !== '');
+      return (rowsText.at(-1) ?? '').trimEnd(); // rows are padded with spaces
+    });
+
+  await page.type('#ai input:not([type=checkbox])', 'show the current directory');
+  await (await buttonByText('Suggest commands')).click();
+  // The Insert button only exists once suggestions are rendered (an explanation has no such button).
+  const insertButton = await until(() => buttonByText('Insert'), 150_000);
+  const suggested = insertButton
+    ? await insertButton.evaluate((b) => b.parentElement?.querySelector('code')?.textContent ?? '')
+    : '';
+  check('suggestions appear with a command', Boolean(suggested), suggested || 'none');
+  if (!suggested) {
+    const panelText = await page.evaluate(() => document.querySelector('#ai')?.textContent ?? '');
+    console.log('panel text:', panelText.slice(0, 400));
+  }
+
+  if (insertButton && suggested) {
+    const labels = await page.$$eval('#ai .badge', (nodes) => nodes.map((n) => n.textContent));
+    check(
+      'each suggestion carries a risk label',
+      labels.includes('review') || labels.includes('dangerous'),
+    );
+
+    await insertButton.click(); // a real, trusted click
+    const typed = await until(async () => (await lastRow()).endsWith(suggested), 10_000);
+    check('Insert types the command at the prompt', Boolean(typed), await lastRow());
+
+    // If Enter had been pressed the shell would have printed output or a new prompt below the command.
+    await sleep(1500);
+    check('Insert alone does not press Enter', (await lastRow()).endsWith(suggested));
+  }
 } finally {
   await browser.close();
   stop();

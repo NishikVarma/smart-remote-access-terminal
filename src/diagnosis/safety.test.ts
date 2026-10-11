@@ -41,6 +41,25 @@ describe('normalizeCommand', () => {
   });
 });
 
+describe('normalizeCommand safety', () => {
+  const LF = String.fromCharCode(10);
+  const CR = String.fromCharCode(13);
+  const ESC = String.fromCharCode(27);
+  const TAB = String.fromCharCode(9);
+
+  it('rejects commands that could display differently from what they execute', () => {
+    expect(normalizeCommand(`ls${LF}rm -rf /`)).toBeNull(); // a second command on a new line
+    expect(normalizeCommand(`echo safe${CR}rm -rf x`)).toBeNull(); // carriage return overwrite
+    expect(normalizeCommand(`echo ${ESC}[2Jhidden`)).toBeNull(); // escape sequence
+    expect(normalizeCommand('a'.repeat(501))).toBeNull();
+  });
+
+  it('keeps ordinary commands, including tabs inside them', () => {
+    expect(normalizeCommand('Get-ChildItem -Force')).toBe('Get-ChildItem -Force');
+    expect(normalizeCommand(`echo "a${TAB}b"`)).toBe(`echo "a${TAB}b"`);
+  });
+});
+
 describe('redact', () => {
   it('removes common secret shapes and counts them', () => {
     const input = [

@@ -1,5 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { abstainText, lastLines, privacyNotice } from './lib.js';
+import { abstainText, lastLines, prepareInput, privacyNotice } from './lib.js';
+
+const ENTER = String.fromCharCode(13);
+const LF = String.fromCharCode(10);
+const ESC = String.fromCharCode(27);
+
+describe('prepareInput (the only path from a suggestion to the terminal)', () => {
+  const never = () => {
+    throw new Error('should not ask for confirmation');
+  };
+
+  it('insert types the command without Enter', () => {
+    expect(prepareInput('Get-Process', 'insert', 'review', never)).toBe('Get-Process');
+  });
+
+  it('run types the command and presses Enter', () => {
+    expect(prepareInput('Get-Process', 'run', 'review', never)).toBe(`Get-Process${ENTER}`);
+  });
+
+  it('a dangerous command is only run after the user confirms again', () => {
+    let asked = 0;
+    const deny = () => (asked++, false);
+    const accept = () => (asked++, true);
+
+    expect(prepareInput('rm -rf build', 'run', 'dangerous', deny)).toBeNull();
+    expect(prepareInput('rm -rf build', 'run', 'dangerous', accept)).toBe(`rm -rf build${ENTER}`);
+    expect(asked).toBe(2);
+  });
+
+  it('inserting a dangerous command needs no extra step because the user still has to press Enter', () => {
+    expect(prepareInput('rm -rf build', 'insert', 'dangerous', never)).toBe('rm -rf build');
+  });
+
+  it('refuses anything that is not exactly one safe line', () => {
+    expect(prepareInput(`ls${LF}rm -rf /`, 'run', 'review', never)).toBeNull();
+    expect(prepareInput(`echo ${ESC}[2J`, 'insert', 'review', never)).toBeNull();
+    expect(prepareInput('null', 'run', 'review', never)).toBeNull();
+    expect(prepareInput('  ls  ', 'run', 'review', never)).toBeNull(); // must already be normalised
+  });
+});
 
 describe('lastLines', () => {
   it('returns the last n lines and ignores trailing blank terminal rows', () => {

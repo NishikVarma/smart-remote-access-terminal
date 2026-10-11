@@ -1,4 +1,5 @@
 import type { DiagnosisResult } from '../../src/diagnosis/schema.js';
+import type { Shell, SuggestResult } from '../../src/suggest/suggest.js';
 import type { ProviderView } from './lib.js';
 
 export interface ProviderInfo extends ProviderView {
@@ -10,7 +11,22 @@ export interface DiagnoseResponse {
   result: DiagnosisResult;
 }
 
+export interface SuggestResponse {
+  provider: ProviderInfo;
+  result: SuggestResult;
+}
+
 export class NotPaired extends Error {}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+  return res.json() as Promise<T>;
+}
 
 /** Same-origin calls to the smart server; the engine is reached through /engine. */
 export async function getProviders(): Promise<{ default: string; providers: ProviderInfo[] }> {
@@ -19,18 +35,19 @@ export async function getProviders(): Promise<{ default: string; providers: Prov
   return res.json();
 }
 
-export async function diagnose(
+export function diagnose(
   log: string,
   provider: string,
   confirmCloud: boolean,
 ): Promise<DiagnoseResponse> {
-  const res = await fetch('/api/diagnose', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ log, provider, confirmCloud }),
-  });
-  if (!res.ok) throw new Error(`diagnose: HTTP ${res.status}`);
-  return res.json();
+  return postJson('/api/diagnose', { log, provider, confirmCloud });
+}
+
+export function suggest(
+  instruction: string,
+  options: { provider: string; confirmCloud: boolean; shell: Shell; context?: string },
+): Promise<SuggestResponse> {
+  return postJson('/api/suggest', { instruction, ...options });
 }
 
 export async function engine(path: string, init?: RequestInit): Promise<Response> {

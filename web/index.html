@@ -34,8 +34,12 @@
       #terminal {
         flex: 1 1 auto;
         min-height: 0;
+        /* xterm positions helper elements that can spill over neighbours; keep them inside. */
+        overflow: hidden;
       }
       #ai {
+        position: relative;
+        z-index: 5;
         flex: 0 0 auto;
         max-height: 45vh;
         overflow: auto;

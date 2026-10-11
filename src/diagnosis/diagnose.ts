@@ -1,5 +1,6 @@
 import type { Bm25Index, Chunk } from '../retrieval/bm25.js';
-import { ProviderError, type StructuredModel } from '../llm/provider.js';
+import { callStructured } from '../llm/call.js';
+import type { StructuredModel } from '../llm/provider.js';
 import { classifyCommand, normalizeCommand } from './command-risk.js';
 import { buildUserMessage, SYSTEM_PROMPT } from './prompt.js';
 import { redact } from './redact.js';
@@ -27,8 +28,6 @@ function retrievalQuery(log: string): string {
   const lines = log.split(/\r?\n/).filter((l) => ERRORISH.test(l));
   return (lines.length > 0 ? lines.slice(-10) : log.split(/\r?\n/).slice(-10)).join('\n');
 }
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Log text in, validated and grounded diagnosis (or an explicit abstention) out.
@@ -62,33 +61,23 @@ export async function diagnose(rawLog: string, options: DiagnoseOptions): Promis
   const knownSources = new Set(docs.map((d) => d.id));
   const user = buildUserMessage(log, docs);
 
-  let failure = 'no attempt made';
-  let cause: 'provider_error' | 'invalid_output' = 'provider_error';
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const raw = await model.generate({
-        system: SYSTEM_PROMPT,
-        user,
-        schema: ModelDiagnosisSchema,
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      const parsed = ModelDiagnosisSchema.safeParse(raw);
-      if (!parsed.success) {
-        cause = 'invalid_output';
-        failure = 'the model output did not match the expected structure';
-        continue;
-      }
-      return ground(parsed.data, { log, knownSources, truncatedInput, redactions });
-    } catch (error) {
-      if (!(error instanceof ProviderError)) throw error;
-      cause = 'provider_error';
-      failure = error.message;
-      if (!error.retryable) break;
-      if (attempt < maxAttempts) await sleep(backoffMs * attempt);
-    }
+  const called = await callStructured({
+    model,
+    system: SYSTEM_PROMPT,
+    user,
+    schema: ModelDiagnosisSchema,
+    maxAttempts,
+    timeoutMs,
+    backoffMs,
+  });
+  if (!called.ok) {
+    return {
+      abstained: true,
+      cause: called.cause,
+      reason: `Could not obtain a diagnosis: ${called.reason}.`,
+    };
   }
-  return { abstained: true, cause, reason: `Could not obtain a diagnosis: ${failure}.` };
+  return ground(called.value, { log, knownSources, truncatedInput, redactions });
 }
 
 interface GroundingContext {

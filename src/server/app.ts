@@ -2,9 +2,10 @@ import { createServer, type Server } from 'node:http';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { diagnose } from '../diagnosis/diagnose.js';
-import type { ProviderInfo, ProviderName } from '../llm/registry.js';
 import type { StructuredModel } from '../llm/provider.js';
+import type { ProviderInfo, ProviderName } from '../llm/registry.js';
 import type { Bm25Index } from '../retrieval/bm25.js';
+import { SHELLS, suggestCommands } from '../suggest/suggest.js';
 import { attachEngineWebSocketProxy, ENGINE_PREFIX, engineHttpProxy } from './engine-proxy.js';
 import { makeGuard } from './guard.js';
 
@@ -30,11 +31,20 @@ export interface AppDeps {
   log?: (line: string) => void;
 }
 
-const diagnoseBody = z.object({
-  log: z.string().min(1).max(200_000),
+const providerFields = {
   provider: z.enum(['ollama', 'gemini', 'anthropic']).optional(),
   /** Must be true to use a provider that sends the text to a third party. */
   confirmCloud: z.boolean().optional(),
+};
+
+const diagnoseBody = z.object({ log: z.string().min(1).max(200_000), ...providerFields });
+
+const suggestBody = z.object({
+  instruction: z.string().min(1).max(2_000),
+  shell: z.enum(SHELLS).optional(),
+  /** Recent terminal output, sent only when the user chose to include it. */
+  context: z.string().max(50_000).optional(),
+  ...providerFields,
 });
 
 export function createSmartServer({
@@ -47,6 +57,28 @@ export function createSmartServer({
   log = () => {},
 }: AppDeps): Server {
   const isAllowed = makeGuard({ allowedOrigins, allowedHosts });
+
+  // Picks the provider and enforces the consent rule: text only goes to a third party when the
+  // request says the user confirmed it. Sends the error response itself when it cannot proceed.
+  function choose(
+    body: { provider?: ProviderName; confirmCloud?: boolean },
+    res: Response,
+  ): { model: StructuredModel; info: ProviderInfo; name: ProviderName } | undefined {
+    const name = body.provider ?? providers.defaultProvider();
+    const info = providers.info(name);
+    const model = providers.get(name);
+    if (!model) {
+      res.status(503).json({ error: 'provider_not_configured', provider: info });
+      return undefined;
+    }
+    if (info.privacy === 'cloud' && body.confirmCloud !== true) {
+      res.status(400).json({ error: 'cloud_confirmation_required', provider: info });
+      return undefined;
+    }
+    return { model, info, name };
+  }
+
+  const timeoutFor = (info: ProviderInfo) => (info.privacy === 'local' ? 120_000 : 60_000);
 
   const app = express();
   app.disable('x-powered-by');
@@ -63,29 +95,43 @@ export function createSmartServer({
   app.post('/api/diagnose', async (req, res) => {
     const body = diagnoseBody.safeParse(req.body);
     if (!body.success) return void res.status(400).json({ error: 'invalid_request' });
-
-    const name = body.data.provider ?? providers.defaultProvider();
-    const info = providers.info(name);
-    const model = providers.get(name);
-    if (!model) {
-      return void res.status(503).json({ error: 'provider_not_configured', provider: info });
-    }
-    if (info.privacy === 'cloud' && body.data.confirmCloud !== true) {
-      return void res.status(400).json({ error: 'cloud_confirmation_required', provider: info });
-    }
+    const chosen = choose(body.data, res);
+    if (!chosen) return;
 
     const started = Date.now();
     const result = await diagnose(body.data.log, {
-      model,
+      model: chosen.model,
       index,
-      timeoutMs: info.privacy === 'local' ? 120_000 : 60_000,
+      timeoutMs: timeoutFor(chosen.info),
     });
     // Metadata only: never the log text, never keys.
     log(
-      `diagnose provider=${name} privacy=${info.privacy} chars=${body.data.log.length} ` +
+      `diagnose provider=${chosen.name} privacy=${chosen.info.privacy} chars=${body.data.log.length} ` +
         `outcome=${result.abstained ? `abstained:${result.cause}` : 'ok'} ms=${Date.now() - started}`,
     );
-    res.json({ provider: info, result });
+    res.json({ provider: chosen.info, result });
+  });
+
+  app.post('/api/suggest', async (req, res) => {
+    const body = suggestBody.safeParse(req.body);
+    if (!body.success) return void res.status(400).json({ error: 'invalid_request' });
+    const chosen = choose(body.data, res);
+    if (!chosen) return;
+
+    const started = Date.now();
+    const result = await suggestCommands(body.data.instruction, {
+      model: chosen.model,
+      shell: body.data.shell,
+      context: body.data.context,
+      timeoutMs: timeoutFor(chosen.info),
+    });
+    log(
+      `suggest provider=${chosen.name} privacy=${chosen.info.privacy} ` +
+        `chars=${body.data.instruction.length} context=${body.data.context?.length ?? 0} ` +
+        `outcome=${result.ok ? `ok:${result.suggestions.length}` : result.cause} ` +
+        `ms=${Date.now() - started}`,
+    );
+    res.json({ provider: chosen.info, result });
   });
 
   // Last in the chain: bad JSON and other errors get a status code, never a stack trace.

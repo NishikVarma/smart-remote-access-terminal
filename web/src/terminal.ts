@@ -15,6 +15,8 @@ export interface TerminalHandle {
   selection(): string;
   /** The last `count` lines on screen and in scrollback. */
   tail(count: number): string;
+  /** Sends text to the shell exactly as if it had been typed. Callers must have user approval. */
+  type(data: string): void;
 }
 
 async function sessionId(cols: number, rows: number): Promise<string> {
@@ -95,6 +97,10 @@ export function openTerminal(root: HTMLElement, onNeedPairing: () => void): Term
     .catch((e: Error) => (e instanceof NotPaired ? onNeedPairing() : status(e.message)));
 
   return {
+    type: (data) => {
+      send({ type: 'input', data });
+      term.focus();
+    },
     selection: () => term.getSelection(),
     tail: (count) => {
       const buffer = term.buffer.active;
