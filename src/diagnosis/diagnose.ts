@@ -1,12 +1,12 @@
 import type { Bm25Index, Chunk } from '../retrieval/bm25.js';
-import { ProviderError, type DiagnosisModel } from '../llm/provider.js';
-import { classifyCommand } from './command-risk.js';
+import { ProviderError, type StructuredModel } from '../llm/provider.js';
+import { classifyCommand, normalizeCommand } from './command-risk.js';
 import { buildUserMessage, SYSTEM_PROMPT } from './prompt.js';
 import { redact } from './redact.js';
 import { ModelDiagnosisSchema, type Diagnosis, type DiagnosisResult } from './schema.js';
 
 export interface DiagnoseOptions {
-  model: DiagnosisModel;
+  model: StructuredModel;
   /** Optional documentation index; matching chunks are passed to the model as references. */
   index?: Bm25Index;
   maxInputChars?: number;
@@ -70,6 +70,7 @@ export async function diagnose(rawLog: string, options: DiagnoseOptions): Promis
       const raw = await model.generate({
         system: SYSTEM_PROMPT,
         user,
+        schema: ModelDiagnosisSchema,
         signal: AbortSignal.timeout(timeoutMs),
       });
       const parsed = ModelDiagnosisSchema.safeParse(raw);
@@ -146,7 +147,7 @@ function ground(
       likelyCauses,
       suggestedSteps: output.suggested_steps.slice(0, 6).map((s) => ({
         description: s.description,
-        command: s.command,
+        command: normalizeCommand(s.command),
         risk: classifyCommand(s.command),
       })),
       droppedClaims: dropped,

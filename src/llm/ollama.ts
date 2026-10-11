@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { ModelDiagnosisSchema } from '../diagnosis/schema.js';
-import { ProviderError, type DiagnosisModel, type GenerateRequest } from './provider.js';
+import { ProviderError, type GenerateRequest, type StructuredModel } from './provider.js';
 
 export interface OllamaModelOptions {
   host?: string;
@@ -9,14 +8,12 @@ export interface OllamaModelOptions {
   fetch?: typeof fetch;
 }
 
-const SCHEMA = z.toJSONSchema(ModelDiagnosisSchema);
-
 /**
  * Adapter for a local Ollama server (free, runs on your own machine, nothing leaves it).
  * Uses Ollama's structured-output support: the JSON Schema is passed as `format`, which
  * constrains decoding to that shape. Content quality depends heavily on the local model.
  */
-export class OllamaModel implements DiagnosisModel {
+export class OllamaModel implements StructuredModel {
   private host: string;
   private model: string;
   private fetchFn: typeof fetch;
@@ -27,7 +24,8 @@ export class OllamaModel implements DiagnosisModel {
     this.fetchFn = options.fetch ?? fetch;
   }
 
-  async generate({ system, user, signal }: GenerateRequest): Promise<unknown> {
+  async generate({ system, user, schema, signal }: GenerateRequest): Promise<unknown> {
+    const jsonSchema = z.toJSONSchema(schema);
     let response: Response;
     try {
       response = await this.fetchFn(`${this.host}/api/chat`, {
@@ -37,13 +35,13 @@ export class OllamaModel implements DiagnosisModel {
         body: JSON.stringify({
           model: this.model,
           stream: false,
-          format: SCHEMA,
+          format: jsonSchema,
           options: { temperature: 0 },
           messages: [
             // Small models follow the shape better when it is also stated in the prompt.
             {
               role: 'system',
-              content: `${system}\n\nRespond with a single JSON object matching this JSON Schema:\n${JSON.stringify(SCHEMA)}`,
+              content: `${system}\n\nRespond with a single JSON object matching this JSON Schema:\n${JSON.stringify(jsonSchema)}`,
             },
             { role: 'user', content: user },
           ],
@@ -66,7 +64,7 @@ export class OllamaModel implements DiagnosisModel {
     try {
       return JSON.parse(payload.message?.content ?? '');
     } catch {
-      return null; // not JSON: diagnose() reports invalid_output
+      return null; // not JSON: callers report invalid output
     }
   }
 }

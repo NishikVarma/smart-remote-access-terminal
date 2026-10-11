@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { diagnose } from './diagnosis/diagnose.js';
-import { modelFromEnv } from './llm/select.js';
+import { ProviderRegistry, type ProviderName } from './llm/registry.js';
 import { buildIndex } from './retrieval/corpus.js';
 
 // Usage: npm run diagnose -- <logfile>      (or pipe the log on stdin)
@@ -18,7 +18,14 @@ async function readInput(): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-const { model, label } = modelFromEnv();
+const registry = new ProviderRegistry();
+const providerName: ProviderName = registry.defaultProvider();
+const model = registry.get(providerName);
+if (!model) {
+  console.error(`Provider "${providerName}" is not configured (missing API key?).`);
+  process.exit(2);
+}
+const label = registry.info(providerName).label;
 const index = buildIndex(fileURLToPath(new URL('../docs-corpus', import.meta.url)));
 
 console.error(`provider: ${label}`);

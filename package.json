@@ -15,14 +15,17 @@
     "diagnose": "tsx --env-file-if-exists=.env src/cli.ts",
     "eval:retrieval": "tsx eval/run-retrieval.ts",
     "eval:baseline": "tsx eval/run-baseline.ts",
-    "eval:llm": "tsx --env-file-if-exists=.env eval/run-llm.ts"
+    "eval:llm": "tsx --env-file-if-exists=.env eval/run-llm.ts",
+    "serve": "tsx --env-file-if-exists=.env src/server/main.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "express": "^5.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
     "eslint": "^10.12.0",
     "prettier": "^3.9.10",

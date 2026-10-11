@@ -21,11 +21,21 @@ const DANGEROUS: RegExp[] = [
   /\bsudo\b/i,
 ];
 
+const NO_COMMAND = new Set(['', 'null', 'none', 'n/a', 'na', '-', 'no command']);
+
+/** Models sometimes return the text "null" or "none" instead of a real null. */
+export function normalizeCommand(command: string | null | undefined): string | null {
+  if (command === null || command === undefined) return null;
+  const trimmed = command.trim();
+  return NO_COMMAND.has(trimmed.toLowerCase()) ? null : trimmed;
+}
+
 /**
  * Every suggested command needs a human decision; some are flagged as dangerous so a UI can warn.
  * Returns null when there is no command.
  */
 export function classifyCommand(command: string | null): CommandRisk | null {
-  if (command === null || command.trim() === '') return null;
-  return DANGEROUS.some((pattern) => pattern.test(command)) ? 'dangerous' : 'review';
+  const normalized = normalizeCommand(command);
+  if (normalized === null) return null;
+  return DANGEROUS.some((pattern) => pattern.test(normalized)) ? 'dangerous' : 'review';
 }

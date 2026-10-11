@@ -1,10 +1,10 @@
-import type { DiagnosisModel, GenerateRequest } from './provider.js';
+import type { GenerateRequest, StructuredModel } from './provider.js';
 
 /**
  * Deterministic stand-in for a real model: returns (or throws) queued responses in order and
  * records every request. Used by tests and by offline demos; it makes no claims about quality.
  */
-export class ScriptedModel implements DiagnosisModel {
+export class ScriptedModel implements StructuredModel {
   readonly requests: GenerateRequest[] = [];
   private next = 0;
 

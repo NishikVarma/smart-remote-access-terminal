@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyCommand } from './command-risk.js';
+import { classifyCommand, normalizeCommand } from './command-risk.js';
 import { redact } from './redact.js';
 
 describe('classifyCommand', () => {
@@ -29,6 +29,16 @@ describe('classifyCommand', () => {
       expect(classifyCommand(command)).toBe('review');
     },
   );
+});
+
+describe('normalizeCommand', () => {
+  it('turns placeholder strings models emit instead of null into null', () => {
+    for (const text of ['null', 'NULL', 'None', 'n/a', '-', '  ', '']) {
+      expect(normalizeCommand(text)).toBeNull();
+      expect(classifyCommand(text)).toBeNull();
+    }
+    expect(normalizeCommand('  ls -l  ')).toBe('ls -l');
+  });
 });
 
 describe('redact', () => {

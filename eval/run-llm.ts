@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { diagnose } from '../src/diagnosis/diagnose.js';
-import { modelFromEnv } from '../src/llm/select.js';
+import { ProviderRegistry } from '../src/llm/registry.js';
 import { buildIndex } from '../src/retrieval/corpus.js';
 import { ruleBasedCategory } from '../src/baseline/rules.js';
 
@@ -14,12 +14,17 @@ interface Case {
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 // Usage: LLM_PROVIDER=ollama OLLAMA_MODEL=llama3.2 npm run eval:llm
-const { model, label } = modelFromEnv();
+const registry = new ProviderRegistry();
+const providerName = registry.defaultProvider();
+const model = registry.get(providerName);
+if (!model) throw new Error(`Provider "${providerName}" is not configured`);
+const label = `${providerName}:${registry.info(providerName).label.replace(/^.*\(|\)$/g, '')}`;
 const index = buildIndex(here('../docs-corpus'));
 const cases: Case[] = readFileSync(here('./diagnosis.jsonl'), 'utf8')
   .split('\n')
   .filter(Boolean)
-  .map((line) => JSON.parse(line) as Case);
+  .map((line) => JSON.parse(line) as Case)
+  .filter((c) => !process.env.EVAL_IDS || process.env.EVAL_IDS.split(',').includes(c.id));
 
 interface Row {
   id: string;
@@ -29,6 +34,7 @@ interface Row {
   correct: boolean;
   rules: string;
   abstainCause: string | null;
+  reason: string | null;
   droppedClaims: number | null;
   ms: number;
 }
@@ -36,7 +42,13 @@ interface Row {
 const rows: Row[] = [];
 for (const c of cases) {
   const start = performance.now();
-  const result = await diagnose(c.log, { model, index, timeoutMs: 120_000, maxAttempts: 1 });
+  const result = await diagnose(c.log, {
+    model,
+    index,
+    timeoutMs: 120_000,
+    maxAttempts: 3,
+    backoffMs: 5000,
+  });
   const ms = Math.round(performance.now() - start);
 
   // For logs that carry no information ("unknown"), abstaining is the correct behaviour.
@@ -54,6 +66,7 @@ for (const c of cases) {
     correct,
     rules: ruleBasedCategory(c.log),
     abstainCause: result.abstained ? result.cause : null,
+    reason: result.abstained ? result.reason : null,
     droppedClaims: result.abstained ? null : result.diagnosis.droppedClaims,
     ms,
   });
@@ -82,7 +95,10 @@ const summary = {
 };
 
 mkdirSync(here('./results'), { recursive: true });
-const file = here(`./results/${label.replace(/[^a-z0-9.-]+/gi, '_')}-${summary.date}.json`);
+const suffix = process.env.EVAL_IDS ? '-subset' : '';
+const file = here(
+  `./results/${label.replace(/[^a-z0-9.-]+/gi, '_')}-${summary.date}${suffix}.json`,
+);
 writeFileSync(file, JSON.stringify({ summary, rows }, null, 2) + '\n');
 console.log(JSON.stringify(summary, null, 2));
 console.log(`wrote ${file}`);

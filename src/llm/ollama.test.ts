@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { OllamaModel } from './ollama.js';
 
-const request = () => ({ system: 'sys', user: 'usr', signal: new AbortController().signal });
+const request = () => ({
+  system: 's',
+  user: 'u',
+  schema: z.object({ summary: z.string() }),
+  signal: new AbortController().signal,
+});
 
 const respond = (status: number, body: unknown) =>
   (async () =>

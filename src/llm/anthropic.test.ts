@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { AnthropicModel } from './anthropic.js';
 import { ProviderError } from './provider.js';
 
@@ -9,7 +10,12 @@ function modelWith(parse: () => Promise<unknown>): AnthropicModel {
   return new AnthropicModel({ client });
 }
 
-const request = () => ({ system: 's', user: 'u', signal: new AbortController().signal });
+const request = () => ({
+  system: 's',
+  user: 'u',
+  schema: z.object({ summary: z.string() }),
+  signal: new AbortController().signal,
+});
 
 const apiError = (status: number) =>
   Anthropic.APIError.generate(status, { error: { message: 'x' } }, 'x', new Headers());

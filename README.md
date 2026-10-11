@@ -36,13 +36,31 @@ npm run diagnose -- path/to/error.log
 
 Choose the provider and model with environment variables (see `.env.example`):
 
-| Provider           | Variables                                          | Cost               |
-| ------------------ | -------------------------------------------------- | ------------------ |
-| `ollama` (default) | `OLLAMA_MODEL` (default `llama3.2`), `OLLAMA_HOST` | free, runs locally |
-| `anthropic`        | `ANTHROPIC_API_KEY`, `LLM_MODEL`, `LLM_EFFORT`     | paid API           |
+| Provider                                                                                | Variables                                                     | Cost                                            |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------- |
+| `ollama` (default)                                                                      | `OLLAMA_MODEL` (default `llama3.2`), `OLLAMA_HOST`            | free, runs locally                              |
+| `gemini`                                                                                | `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-2.5-flash`) | free tier, small daily quota (see privacy note) |
+|                                                                                         |
+| Any other provider only needs to implement the one-method `DiagnosisModel` interface in |
+| `src/llm/provider.ts`.                                                                  |
 
-Any other provider only needs to implement the one-method `DiagnosisModel` interface in
-`src/llm/provider.ts`.
+### Privacy of cloud providers
+
+`ollama` keeps all text on your machine. `gemini` and `anthropic` send the (redacted) text to a third
+party. On Google's free (unpaid) Gemini tier, prompts and responses may be used to improve Google's
+products and may be read by human reviewers, and Google advises against sending sensitive or
+confidential data. Redaction is best effort. For this reason the HTTP API refuses a cloud provider
+unless the request carries `confirmCloud: true`, and every response states which provider handled it.
+
+## HTTP API
+
+```
+npm run serve                  # http://127.0.0.1:8788, loopback only
+GET  /api/providers            # which providers are configured, local vs cloud
+POST /api/diagnose             # { log, provider?, confirmCloud? } -> { provider, result }
+```
+
+The server checks Host and Origin on every request so other web pages cannot spend your quota.
 
 ## Checks and evaluation
 
@@ -65,17 +83,17 @@ Local models, same 22 labelled logs, run with `npm run eval:llm` (one machine, R
 two runs gave identical scores). A case counts as correct only if the model's category matches (for logs that
 carry no information, abstaining is correct):
 
-| Model (Ollama) | Easy (14) | Hard (8) | Abstained | Mean latency |
-| -------------- | --------- | -------- | --------- | ------------ |
-| llama3.2 (3B)  | 4         | 3        | 6         | about 4.5 s  |
-| mistral (7B)   | 9         | 5        | 2         | about 7.5 s  |
-| rules baseline | 14        | 3        | n/a       | instant      |
-
-Read this carefully: the rules were written while looking at the easy set, so 14/14 there is not
-generalisation, and the sets are tiny. On the hard set mistral (5/8) beat the rules (3/8); on the easy set it did
-not. Every abstention was "ungrounded": the grounding check rejected the answer, the models never said "I cannot
-tell" by themselves, and both guessed a category for a log that contained no information. No hosted model has been
-evaluated.
+| Model (Ollama)                                                                                                     | Easy (14) | Hard (8) | Abstained               | Mean latency |
+| ------------------------------------------------------------------------------------------------------------------ | --------- | -------- | ----------------------- | ------------ |
+| llama3.2 (3B)                                                                                                      | 4         | 3        | 6                       | about 4.5 s  |
+| mistral (7B)                                                                                                       | 9         | 5        | 2                       | about 7.5 s  |
+| gemini-2.5-flash (cloud)                                                                                           | 13        | 5        | 4 (3 were quota errors) | about 8.6 s  |
+|                                                                                                                    |
+| Read this carefully: the rules were written while looking at the easy set, so 14/14 there is not                   |
+| generalisation, and the sets are tiny. On the hard set mistral (5/8) beat the rules (3/8); on the easy set it did  |
+| not. Every abstention was "ungrounded": the grounding check rejected the answer, the models never said "I cannot   |
+| tell" by themselves, and both guessed a category for a log that contained no information. No hosted model has been |
+| evaluated.                                                                                                         |
 
 ## Layout
 
