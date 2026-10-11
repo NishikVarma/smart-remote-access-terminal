@@ -95,6 +95,17 @@ carry no information, abstaining is correct):
 | tell" by themselves, and both guessed a category for a log that contained no information. No hosted model has been |
 | evaluated.                                                                                                         |
 
+## Using it with remote-terminal-access
+
+The smart server can sit in front of the [remote-terminal-access](https://github.com/NishikVarma/remote-terminal-access)
+engine: requests under `/engine/*` (HTTP and WebSocket) are forwarded to it, so a browser talks to one
+origin and no CORS is needed. The proxy has no credentials of its own and changes nothing: the browser's
+device cookie and Origin go through, and the engine does all authentication.
+
+1. Start the engine with this server's origin allowed: `ALLOWED_ORIGINS=http://localhost:8788`.
+2. Start this server: `npm run serve` (engine address from `ENGINE_URL`, default `http://127.0.0.1:8787`).
+3. Check the whole path with `npm run e2e:engine` (pairs through the proxy, opens a real shell, runs a command).
+
 ## Layout
 
 ```

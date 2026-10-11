@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ScriptedModel } from '../llm/scripted.js';
 import type { ProviderInfo, ProviderName } from '../llm/registry.js';
 import type { ModelDiagnosis } from '../diagnosis/schema.js';
-import { createApp, type Providers } from './app.js';
+import { createSmartServer, type Providers } from './app.js';
 
 const LOG = "npm ERR! Error: EACCES: permission denied, mkdir '/usr/lib/node_modules/foo'";
 
@@ -50,11 +50,10 @@ let base: string;
 
 async function start(configured: ProviderName[] = ['ollama', 'gemini']) {
   const fake = fakeProviders(configured);
-  const app = createApp({
+  server = createSmartServer({
     providers: fake.providers,
     allowedOrigins: ['http://localhost:5555'],
   });
-  server = http.createServer(app);
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   return fake;

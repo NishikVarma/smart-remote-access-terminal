@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { ProviderRegistry } from '../llm/registry.js';
 import { buildIndex } from '../retrieval/corpus.js';
-import { createApp } from './app.js';
+import { createSmartServer } from './app.js';
 
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '::1']);
 
@@ -24,14 +24,15 @@ if (extraOrigins.includes('*')) {
 }
 
 const providers = new ProviderRegistry();
-const app = createApp({
+const server = createSmartServer({
   providers,
   index: buildIndex(fileURLToPath(new URL('../../docs-corpus', import.meta.url))),
   allowedOrigins: [`http://127.0.0.1:${port}`, `http://localhost:${port}`, ...extraOrigins],
+  engineUrl: process.env.ENGINE_URL ?? 'http://127.0.0.1:8787',
   log: (line) => console.log(line),
 });
 
-app.listen(port, host, () => {
+server.listen(port, host, () => {
   const names = providers
     .list()
     .filter((p) => p.available)

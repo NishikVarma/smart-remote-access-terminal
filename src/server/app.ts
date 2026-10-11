@@ -1,10 +1,12 @@
-import type { IncomingMessage } from 'node:http';
-import express, { type Express, type NextFunction, type Request, type Response } from 'express';
+import { createServer, type Server } from 'node:http';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { diagnose } from '../diagnosis/diagnose.js';
 import type { ProviderInfo, ProviderName } from '../llm/registry.js';
 import type { StructuredModel } from '../llm/provider.js';
 import type { Bm25Index } from '../retrieval/bm25.js';
+import { attachEngineWebSocketProxy, ENGINE_PREFIX, engineHttpProxy } from './engine-proxy.js';
+import { makeGuard } from './guard.js';
 
 /** What the HTTP layer needs from the provider registry (ProviderRegistry implements it). */
 export interface Providers {
@@ -21,6 +23,8 @@ export interface AppDeps {
   allowedOrigins: string[];
   /** Hostnames (no port) accepted in the Host header, in addition to loopback names. */
   allowedHosts?: string[];
+  /** Base URL of the remote-terminal-access engine; enables the /engine proxy when set. */
+  engineUrl?: string;
   log?: (line: string) => void;
 }
 
@@ -31,26 +35,21 @@ const diagnoseBody = z.object({
   confirmCloud: z.boolean().optional(),
 });
 
-export function createApp({
+export function createSmartServer({
   providers,
   index,
   allowedOrigins,
   allowedHosts = [],
+  engineUrl,
   log = () => {},
-}: AppDeps): Express {
-  const hostnames = new Set(['127.0.0.1', 'localhost', '[::1]', ...allowedHosts]);
-
-  // Blocks DNS rebinding (Host) and cross-site requests (Origin): this API can spend the user's
-  // provider quota, so a random web page must not be able to call it.
-  const isAllowed = (req: IncomingMessage): boolean => {
-    const host = (req.headers.host ?? '').replace(/:\d+$/, '');
-    const origin = req.headers.origin;
-    return hostnames.has(host) && (!origin || allowedOrigins.includes(origin));
-  };
+}: AppDeps): Server {
+  const isAllowed = makeGuard({ allowedOrigins, allowedHosts });
 
   const app = express();
   app.disable('x-powered-by');
   app.use((req, res, next) => (isAllowed(req) ? next() : void res.sendStatus(403)));
+  // The proxy streams request bodies, so it must come before any body parser.
+  if (engineUrl) app.use(ENGINE_PREFIX, engineHttpProxy(engineUrl));
   app.use(express.json({ limit: '256kb' }));
 
   app.get('/api/providers', (_req, res) => {
@@ -90,5 +89,7 @@ export function createApp({
     res.sendStatus(err.status ?? 500);
   });
 
-  return app;
+  const server = createServer(app);
+  if (engineUrl) attachEngineWebSocketProxy(server, engineUrl, isAllowed);
+  return server;
 }
