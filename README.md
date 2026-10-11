@@ -106,6 +106,20 @@ device cookie and Origin go through, and the engine does all authentication.
 2. Start this server: `npm run serve` (engine address from `ENGINE_URL`, default `http://127.0.0.1:8787`).
 3. Check the whole path with `npm run e2e:engine` (pairs through the proxy, opens a real shell, runs a command).
 
+## Web app
+
+```
+npm run build:web      # builds web/dist
+npm run serve          # serves the app, the AI API and the /engine proxy on http://localhost:8788
+```
+
+Open http://localhost:8788, pair with the code shown by the engine, and use the terminal. The **AI** button
+opens a panel: pick a provider (the badge says whether text stays on this PC or goes to the cloud), then
+**Explain selection** or **Explain last output**. Cloud providers always ask for confirmation first and
+say what will be sent. Suggested commands are shown with a risk label and a Copy button; nothing is run.
+
+`npm run e2e:browser` drives the whole flow in a real Chrome/Edge against the real engine.
+
 ## Layout
 
 ```

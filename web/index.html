@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>smart remote terminal</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111;
+        --panel: #1b1b1f;
+        --line: #333;
+        --text: #eee;
+        --muted: #9aa;
+        --good: #2e7d32;
+        --warn: #b26a00;
+        --bad: #b3261e;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      #terminal {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      #ai {
+        flex: 0 0 auto;
+        max-height: 45vh;
+        overflow: auto;
+        background: var(--panel);
+        border-top: 1px solid var(--line);
+        padding: 8px 12px;
+      }
+      #ai[hidden] {
+        display: none;
+      }
+      #ai-toggle {
+        position: fixed;
+        right: 8px;
+        top: 8px;
+        z-index: 10;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .badge {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+      }
+      .badge.local {
+        background: var(--good);
+      }
+      .badge.cloud {
+        background: var(--warn);
+      }
+      .badge.dangerous {
+        background: var(--bad);
+      }
+      .badge.review {
+        background: #444;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      blockquote {
+        margin: 4px 0;
+        padding-left: 8px;
+        border-left: 3px solid var(--line);
+      }
+      code {
+        font-family: ui-monospace, Consolas, monospace;
+        background: #000;
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+      button,
+      select {
+        font-size: 14px;
+        padding: 6px 10px;
+      }
+      .pair {
+        padding: 16px;
+        max-width: 340px;
+      }
+      .pair input {
+        width: 100%;
+        font-size: 18px;
+        padding: 6px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="terminal"></div>
+      <div id="ai" hidden></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

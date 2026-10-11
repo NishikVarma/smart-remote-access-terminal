@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p web/tsconfig.json --noEmit",
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "test": "vitest run",
@@ -17,10 +17,15 @@
     "eval:baseline": "tsx eval/run-baseline.ts",
     "eval:llm": "tsx --env-file-if-exists=.env eval/run-llm.ts",
     "serve": "tsx --env-file-if-exists=.env src/server/main.ts",
-    "e2e:engine": "node scripts/e2e-engine.mjs"
+    "e2e:engine": "node scripts/e2e-engine.mjs",
+    "build:web": "vite build --config web/vite.config.ts",
+    "dev:web": "vite --config web/vite.config.ts",
+    "e2e:browser": "node scripts/e2e-browser.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "express": "^5.3.0",
     "ws": "^8.22.0",
     "zod": "^4.6.5"
@@ -32,9 +37,11 @@
     "@types/ws": "^8.18.2",
     "eslint": "^10.12.0",
     "prettier": "^3.9.10",
+    "puppeteer-core": "^25.13.0",
     "tsx": "^4.23.15",
     "typescript": "~5.9",
     "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.4",
     "vitest": "^5.0.3"
   }
 }

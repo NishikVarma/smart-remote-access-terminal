@@ -25,6 +25,8 @@ export interface AppDeps {
   allowedHosts?: string[];
   /** Base URL of the remote-terminal-access engine; enables the /engine proxy when set. */
   engineUrl?: string;
+  /** Folder with the built web app (web/dist); served without login, it only holds the pairing form. */
+  webDir?: string;
   log?: (line: string) => void;
 }
 
@@ -41,6 +43,7 @@ export function createSmartServer({
   allowedOrigins,
   allowedHosts = [],
   engineUrl,
+  webDir,
   log = () => {},
 }: AppDeps): Server {
   const isAllowed = makeGuard({ allowedOrigins, allowedHosts });
@@ -50,6 +53,7 @@ export function createSmartServer({
   app.use((req, res, next) => (isAllowed(req) ? next() : void res.sendStatus(403)));
   // The proxy streams request bodies, so it must come before any body parser.
   if (engineUrl) app.use(ENGINE_PREFIX, engineHttpProxy(engineUrl));
+  if (webDir) app.use(express.static(webDir));
   app.use(express.json({ limit: '256kb' }));
 
   app.get('/api/providers', (_req, res) => {

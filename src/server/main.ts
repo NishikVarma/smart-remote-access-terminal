@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ProviderRegistry } from '../llm/registry.js';
 import { buildIndex } from '../retrieval/corpus.js';
@@ -23,12 +24,16 @@ if (extraOrigins.includes('*')) {
   process.exit(1);
 }
 
+const builtWeb = fileURLToPath(new URL('../../web/dist', import.meta.url));
+const webDir = existsSync(builtWeb) ? builtWeb : undefined;
+
 const providers = new ProviderRegistry();
 const server = createSmartServer({
   providers,
   index: buildIndex(fileURLToPath(new URL('../../docs-corpus', import.meta.url))),
   allowedOrigins: [`http://127.0.0.1:${port}`, `http://localhost:${port}`, ...extraOrigins],
   engineUrl: process.env.ENGINE_URL ?? 'http://127.0.0.1:8787',
+  webDir,
   log: (line) => console.log(line),
 });
 
@@ -39,4 +44,5 @@ server.listen(port, host, () => {
     .map((p) => `${p.name}(${p.privacy})`);
   console.log(`smart server on http://${host}:${port}; providers: ${names.join(', ')}`);
   console.log(`default provider: ${providers.defaultProvider()}`);
+  console.log(webDir ? `serving web app from ${webDir}` : 'web app not built (npm run build:web)');
 });
