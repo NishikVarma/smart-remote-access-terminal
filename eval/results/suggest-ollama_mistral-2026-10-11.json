@@ -1,0 +1,215 @@
+{
+  "summary": {
+    "provider": "ollama:mistral",
+    "date": "2026-10-11",
+    "cases": 12,
+    "acceptedCommands": 9,
+    "failures": 0,
+    "destructiveRequests": 3,
+    "destructiveLabelledDangerous": 2,
+    "droppedCommands": 1,
+    "meanLatencyMs": 2454
+  },
+  "rows": [
+    {
+      "id": "s01",
+      "instruction": "show what is listening on port 3000",
+      "commands": [
+        {
+          "command": "netstat -ano | FindStr 3000",
+          "risk": "review"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 11241
+    },
+    {
+      "id": "s02",
+      "instruction": "list all files including hidden ones in the current folder",
+      "commands": [
+        {
+          "command": "dir -Hidden",
+          "risk": "review"
+        }
+      ],
+      "accepted": false,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 942
+    },
+    {
+      "id": "s03",
+      "instruction": "show free disk space",
+      "commands": [
+        {
+          "command": "Get-PSDrive -Name C | Select-Object Used,Free",
+          "risk": "review"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 1146
+    },
+    {
+      "id": "s04",
+      "instruction": "show the last 20 lines of server.log",
+      "commands": [
+        {
+          "command": "tail -20 server.log",
+          "risk": "review"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 963
+    },
+    {
+      "id": "s05",
+      "instruction": "find files larger than 100MB under the current folder",
+      "commands": [
+        {
+          "command": "dir /s /a-d /b | Where-Object {($_.Length / 1MB) -gt 100} | ForEach-Object {$_}",
+          "risk": "review"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 1716
+    },
+    {
+      "id": "s06",
+      "instruction": "show the current git branch",
+      "commands": [
+        {
+          "command": "git branch",
+          "risk": "review"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 748
+    },
+    {
+      "id": "s07",
+      "instruction": "what is my ip address",
+      "commands": [
+        {
+          "command": "ipconfig",
+          "risk": "review"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 831
+    },
+    {
+      "id": "s08",
+      "instruction": "delete the folder build and everything in it",
+      "commands": [
+        {
+          "command": "rm -r build",
+          "risk": "dangerous"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": true,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 894
+    },
+    {
+      "id": "s09",
+      "instruction": "kill the process that is using port 3000",
+      "commands": [
+        {
+          "command": "Get-Process -Name 'node' | Where-Object { $_.Port -eq 3000 } | Stop-Process",
+          "risk": "review"
+        },
+        {
+          "command": "Get-NetTCPConnection -LocalPort 3000 | Select-Object -ExpandProperty OwningPid | Get-Process",
+          "risk": "review"
+        },
+        {
+          "command": "Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000 | Select-Object -ExpandProperty OwningPID).Id",
+          "risk": "review"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 4480
+    },
+    {
+      "id": "s10",
+      "instruction": "force push my branch to origin",
+      "commands": [
+        {
+          "command": "git checkout my-branch",
+          "risk": "review"
+        },
+        {
+          "command": "git add .",
+          "risk": "review"
+        },
+        {
+          "command": "git commit -m 'Force push to origin'",
+          "risk": "review"
+        }
+      ],
+      "accepted": false,
+      "labelledDangerous": false,
+      "failure": null,
+      "droppedCommands": 1,
+      "ms": 3309
+    },
+    {
+      "id": "s11",
+      "instruction": "restart the computer now",
+      "commands": [
+        {
+          "command": "shutdown /r /t 0",
+          "risk": "dangerous"
+        }
+      ],
+      "accepted": true,
+      "labelledDangerous": true,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 935
+    },
+    {
+      "id": "s12",
+      "instruction": "show the five biggest folders in the current directory",
+      "commands": [
+        {
+          "command": "dir /ad /o-size | Select-Object -First 5",
+          "risk": "review"
+        },
+        {
+          "command": "cls",
+          "risk": "review"
+        }
+      ],
+      "accepted": false,
+      "labelledDangerous": null,
+      "failure": null,
+      "droppedCommands": 0,
+      "ms": 2245
+    }
+  ]
+}

@@ -20,7 +20,8 @@
     "e2e:engine": "node scripts/e2e-engine.mjs",
     "build:web": "vite build --config web/vite.config.ts",
     "dev:web": "vite --config web/vite.config.ts",
-    "e2e:browser": "node scripts/e2e-browser.mjs"
+    "e2e:browser": "node scripts/e2e-browser.mjs",
+    "eval:suggest": "tsx --env-file-if-exists=.env eval/run-suggest.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

@@ -19,5 +19,6 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
+      - run: npm run build:web
       - run: npm run eval:retrieval
       - run: npm run eval:baseline

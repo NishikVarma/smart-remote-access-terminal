@@ -1,143 +1,134 @@
 # smart-remote-access-terminal
 
-An AI troubleshooting companion for terminal output. Give it a log or an error; it returns a
-structured, evidence-grounded diagnosis, or says it cannot tell. It is designed to sit next to
-[remote-terminal-access](https://github.com/NishikVarma/remote-terminal-access), but it runs on
-its own and never executes anything.
+A smart client for a remote terminal. It puts a browser terminal and an AI side panel in front of
+[remote-terminal-access](https://github.com/NishikVarma/remote-terminal-access) (the secure engine that
+actually runs your shell) and adds: explain errors, turn plain English into reviewed commands, summarise
+what happened while you were away, and warn before a dangerous command is sent.
 
-**Status: early.** Diagnosis pipeline, retrieval baseline and evaluation harness exist. The
-Anthropic adapter has not been exercised against the live API in this repository's tests.
+**The AI never runs anything.** It only proposes. Commands reach the shell solely when you press
+**Insert** (types it, you press Enter) or **Run** (types it and presses Enter, with a second confirmation if
+it looks dangerous).
 
-## What it does
+**Status:** working end to end on Windows with local models and Gemini. Tested with unit tests and a
+real-browser script. See [Limitations](#limitations) before relying on it.
 
-1. Takes a log (file or stdin). Keeps the tail of very long logs.
-2. **Redacts** obvious secrets (tokens, keys, passwords) before anything leaves the machine.
-3. **Retrieves** relevant troubleshooting notes from `docs-corpus/` (BM25 keyword search).
-4. Asks the model for a structured diagnosis (JSON validated with zod). Log text and documents are
-   passed as untrusted data, delimited so they cannot close the prompt's own tags.
-5. **Grounds** the answer in code: evidence quotes must appear verbatim in the log, cited sources
-   must be documents that were actually retrieved. Unverifiable claims are dropped; if nothing is
-   left it abstains.
-6. **Classifies suggested commands** as `review` or `dangerous` with deterministic rules. The model
-   never decides what is safe, and nothing is run.
+## How it fits together
 
-Provider failures (timeouts, rate limits, refusals, invalid output) become an explicit abstention
-with a cause, never a crash.
+```
+Browser (xterm + AI panel)
+   |  same origin
+smart server  (this repo, 127.0.0.1:8788)
+   |-- /engine/*   plain reverse proxy (HTTP + WebSocket)  ->  remote-terminal-access (127.0.0.1:8787)
+   |-- /api/*      diagnose / suggest / summary / providers
+   '-- providers:  ollama (local, default)  |  gemini (cloud, opt-in)  |  anthropic (cloud, opt-in)
+```
+
+The engine does pairing, authentication, sessions and the audit log, unchanged. This repo holds no
+credentials for it: your browser's device cookie passes straight through the proxy.
 
 ## Quick start
 
-Default provider is **Ollama**: free, local, nothing leaves your machine.
+Requirements: Node 22+, a built [remote-terminal-access](https://github.com/NishikVarma/remote-terminal-access),
+and for free local AI [Ollama](https://ollama.com) with a model (`ollama pull llama3.2`).
 
 ```
-ollama pull llama3.2            # or: ollama pull mistral
+# 1. engine (its repo): allow this app's origin, then start it
+ALLOWED_ORIGINS=http://localhost:8788 npm run start -w @rta/server     # prints a pairing code
+
+# 2. this repo
 npm install
-npm run diagnose -- path/to/error.log
+npm run build:web
+npm run serve                      # http://localhost:8788
 ```
 
-Choose the provider and model with environment variables (see `.env.example`):
+Open http://localhost:8788, enter the engine's pairing code, and use the terminal. Click **AI**.
 
-| Provider                                                                                | Variables                                                     | Cost                                            |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------- |
-| `ollama` (default)                                                                      | `OLLAMA_MODEL` (default `llama3.2`), `OLLAMA_HOST`            | free, runs locally                              |
-| `gemini`                                                                                | `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-2.5-flash`) | free tier, small daily quota (see privacy note) |
-|                                                                                         |
-| Any other provider only needs to implement the one-method `DiagnosisModel` interface in |
-| `src/llm/provider.ts`.                                                                  |
+Configuration is read from `.env` (see `.env.example`): `ENGINE_URL`, `PORT`, `LLM_PROVIDER`,
+`OLLAMA_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `ANTHROPIC_API_KEY`, `LLM_MODEL`.
 
-### Privacy of cloud providers
+## Features
 
-`ollama` keeps all text on your machine. `gemini` and `anthropic` send the (redacted) text to a third
-party. On Google's free (unpaid) Gemini tier, prompts and responses may be used to improve Google's
-products and may be read by human reviewers, and Google advises against sending sensitive or
-confidential data. Redaction is best effort. For this reason the HTTP API refuses a cloud provider
-unless the request carries `confirmCloud: true`, and every response states which provider handled it.
+| Feature                         | What happens                                                                                                                                                |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Explain selection / output      | Redacts secrets, retrieves matching troubleshooting notes, asks for a structured diagnosis, keeps only claims whose quotes appear in the text. May abstain. |
+| Ask (plain English to commands) | Up to 3 candidates, one line each, risk label computed by code. Insert or Run. Unsafe characters are rejected.                                              |
+| Summarize recent activity       | Commands that ran, problems (with exact quotes), and the terminal state. Offered after a reconnect, never automatic.                                        |
+| Dangerous-command guard         | Before Enter, checks the screen line and your typed keystrokes against the same risk rules. A typo guard, not a security control.                           |
+
+## Providers and privacy
+
+| Provider           | Where text goes        | Cost                               |
+| ------------------ | ---------------------- | ---------------------------------- |
+| `ollama` (default) | stays on this computer | free                               |
+| `gemini`           | sent to Google         | free tier with a small daily quota |
+| `anthropic`        | sent to Anthropic      | paid                               |
+
+On Google's free (unpaid) Gemini tier, prompts and responses may be used to improve Google's products
+and may be read by human reviewers; Google advises against sending sensitive data. Redaction of
+obvious secrets is best effort. So a cloud provider is never used silently: the API refuses unless the
+request says `confirmCloud: true`, the UI shows a dialog stating how much text leaves the machine, and
+every response says which provider handled it.
 
 ## HTTP API
 
 ```
-npm run serve                  # http://127.0.0.1:8788, loopback only
-GET  /api/providers            # which providers are configured, local vs cloud
-POST /api/diagnose             # { log, provider?, confirmCloud? } -> { provider, result }
-POST /api/suggest              # { instruction, shell?, context?, provider?, confirmCloud? } -> { provider, result }
-POST /api/summary              # { output, provider?, confirmCloud? } -> { provider, result }
+GET  /api/providers    -> { default, providers: [{ name, label, privacy, available }] }
+POST /api/diagnose     { log, provider?, confirmCloud? }                       -> { provider, result }
+POST /api/suggest      { instruction, shell?, context?, provider?, confirmCloud? } -> { provider, result }
+POST /api/summary      { output, provider?, confirmCloud? }                    -> { provider, result }
+ANY  /engine/*         forwarded to remote-terminal-access
 ```
 
-The server checks Host and Origin on every request so other web pages cannot spend your quota.
+The server listens on loopback only and checks the Host and Origin headers of every request, so other
+web pages cannot call it or spend your provider quota.
 
 ## Checks and evaluation
 
 ```
-npm run typecheck && npm run lint && npm run format:check && npm test
-npm run eval:retrieval      # BM25 baseline: Recall@k and MRR
-npm run eval:baseline       # keyword-rules baseline for categories
-npm run eval:llm            # runs the configured model over the labelled logs (writes eval/results/)
+npm run typecheck && npm run lint && npm run format:check && npm test     # 115 tests
+npm run e2e:engine      # real engine behind the proxy, real shell
+npm run e2e:browser     # real Chrome: pairing, terminal, consent, suggest, guard, summary
+npm run eval:retrieval | eval:baseline | eval:llm | eval:suggest
 ```
 
-Current baseline numbers (author-written, small sets; see Limitations):
+Measured results (small, author-written sets; one machine, RTX 4060 8 GB; temperature 0):
 
-| Measure                                     | Result                                       |
-| ------------------------------------------- | -------------------------------------------- |
-| BM25 retrieval, 18 queries, document level  | Recall@1 0.944, Recall@3 1.000, MRR 0.972    |
-| Rules baseline, category accuracy, easy set | 14 / 14                                      |
-| Rules baseline, category accuracy, hard set | 3 / 8 (rules frozen before the hard set ran) |
+| Evaluation                                     | Result                                                                                                                               |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| BM25 retrieval, 18 queries                     | Recall@3 1.000, MRR 0.972                                                                                                            |
+| Diagnosis category, 22 logs (14 easy / 8 hard) | rules 14/14 and 3/8; llama3.2 4/14 and 3/8; mistral 9/14 and 5/8; gemini-2.5-flash 13/14 and 5/8 (3 of its misses were quota errors) |
+| Command suggestions, 12 requests               | llama3.2 10/12, mistral 9/12 matched an acceptable pattern; destructive requests labelled dangerous 3/3 and 2/3                      |
 
-Local models, same 22 labelled logs, run with `npm run eval:llm` (one machine, RTX 4060 8 GB, temperature 0;
-two runs gave identical scores). A case counts as correct only if the model's category matches (for logs that
-carry no information, abstaining is correct):
+Details and caveats are in the files under `eval/results/`. Read them: the sets are tiny, written by the
+author, and a "match" means a regular expression matched, not that the command is optimal.
 
-| Model (Ollama)                                                                                                     | Easy (14) | Hard (8) | Abstained               | Mean latency |
-| ------------------------------------------------------------------------------------------------------------------ | --------- | -------- | ----------------------- | ------------ |
-| llama3.2 (3B)                                                                                                      | 4         | 3        | 6                       | about 4.5 s  |
-| mistral (7B)                                                                                                       | 9         | 5        | 2                       | about 7.5 s  |
-| gemini-2.5-flash (cloud)                                                                                           | 13        | 5        | 4 (3 were quota errors) | about 8.6 s  |
-|                                                                                                                    |
-| Read this carefully: the rules were written while looking at the easy set, so 14/14 there is not                   |
-| generalisation, and the sets are tiny. On the hard set mistral (5/8) beat the rules (3/8); on the easy set it did  |
-| not. Every abstention was "ungrounded": the grounding check rejected the answer, the models never said "I cannot   |
-| tell" by themselves, and both guessed a category for a log that contained no information. No hosted model has been |
-| evaluated.                                                                                                         |
+## Limitations
 
-## Using it with remote-terminal-access
-
-The smart server can sit in front of the [remote-terminal-access](https://github.com/NishikVarma/remote-terminal-access)
-engine: requests under `/engine/*` (HTTP and WebSocket) are forwarded to it, so a browser talks to one
-origin and no CORS is needed. The proxy has no credentials of its own and changes nothing: the browser's
-device cookie and Origin go through, and the engine does all authentication.
-
-1. Start the engine with this server's origin allowed: `ALLOWED_ORIGINS=http://localhost:8788`.
-2. Start this server: `npm run serve` (engine address from `ENGINE_URL`, default `http://127.0.0.1:8787`).
-3. Check the whole path with `npm run e2e:engine` (pairs through the proxy, opens a real shell, runs a command).
-
-## Web app
-
-```
-npm run build:web      # builds web/dist
-npm run serve          # serves the app, the AI API and the /engine proxy on http://localhost:8788
-```
-
-Open http://localhost:8788, pair with the code shown by the engine, and use the terminal. The **AI** button
-opens a panel: pick a provider (the badge says whether text stays on this PC or goes to the cloud), then
-**Explain selection** or **Explain last output**. The **Ask** row turns a request such as "what is using port 3000" into up to three command candidates, each with a risk label computed in code. **Insert** types a candidate at the prompt so you can read it and press Enter yourself; **Run** types it and presses Enter (dangerous ones ask again). Cloud providers always ask for confirmation first and
-say what will be sent. Nothing is typed into the terminal unless you press Insert or Run. **Summarize recent activity** gives a short, quote-checked digest of the last output (and is offered after a reconnect). A **dangerous-command guard** asks before a command such as `Remove-Item -Recurse` or `git push --force` is submitted; it is a typo guard for phone typing, not a security boundary.
-
-`npm run e2e:browser` drives the whole flow in a real Chrome/Edge against the real engine.
+- Evaluation sets are small and author-written; the keyword rules were written while looking at the
+  easy set, so their 14/14 is not generalisation. No held-out set of real logs exists yet.
+- Small local models give plain or occasionally wrong commands (for example a "force push" suggestion
+  that never force-pushes). Gemini is stronger but its free daily quota ran out during evaluation.
+- The dangerous-command guard is advisory: aliases, scripts, an unrecognised prompt, or switching it
+  off bypass it. The risk rules are regular expressions.
+- Secret redaction is pattern based and will miss unusual formats.
+- Retrieval is keyword-only (BM25). PostgreSQL full-text vs pgvector vs hybrid is not built or compared.
+- The Anthropic adapter has never called the live API. No mobile layout work or touch key toolbar here
+  (the engine's own page has one).
+- A half-typed line followed by **Run** concatenates; the guard and the Insert option exist for that.
 
 ## Layout
 
 ```
 src/diagnosis/   schema, prompt, redaction, grounding, command risk, diagnose()
-src/llm/         provider interface, Anthropic adapter, scripted test double
+src/suggest/     plain English -> reviewed command candidates
+src/summary/     grounded digest of recent output
+src/llm/         provider interface, Ollama / Gemini / Anthropic adapters, registry, callStructured
 src/retrieval/   chunking, BM25, metrics, corpus loader
+src/server/      Express app, Host/Origin guard, /engine proxy
 src/baseline/    keyword-rules baseline
-eval/            datasets (jsonl) and runners
+web/             Vite + xterm client (terminal, AI panel, guard, approval gate)
+eval/            labelled sets and runners (results in eval/results)
+scripts/         end-to-end checks
 docs-corpus/     troubleshooting notes used for retrieval
+docs/            architecture
 ```
-
-## Limitations
-
-- Datasets are small and written by the author, who also wrote the corpus and the rules, so the
-  easy-set numbers are optimistic. A held-out set of real logs is needed before any claim.
-- Retrieval is keyword-only. Dense and hybrid retrieval (PostgreSQL full-text vs pgvector) are not
-  built yet, so there is no measured comparison.
-- Redaction is best effort and regex based; unusual secret formats pass through.
-- No streaming, no caching, no cost or latency tracking yet.
