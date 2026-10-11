@@ -95,7 +95,7 @@ describe('diagnose', () => {
       }),
     ]);
     const result = await diagnose(LOG, { model, ...fast });
-    expect(result).toMatchObject({ abstained: true, cause: 'insufficient_evidence' });
+    expect(result).toMatchObject({ abstained: true, cause: 'ungrounded' });
   });
 
   it('passes through a model abstention', async () => {

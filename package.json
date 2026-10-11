@@ -14,7 +14,8 @@
     "test": "vitest run",
     "diagnose": "tsx --env-file-if-exists=.env src/cli.ts",
     "eval:retrieval": "tsx eval/run-retrieval.ts",
-    "eval:baseline": "tsx eval/run-baseline.ts"
+    "eval:baseline": "tsx eval/run-baseline.ts",
+    "eval:llm": "tsx --env-file-if-exists=.env eval/run-llm.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

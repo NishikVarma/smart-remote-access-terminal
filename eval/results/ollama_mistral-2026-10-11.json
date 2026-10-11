@@ -1,0 +1,265 @@
+{
+  "summary": {
+    "provider": "ollama:mistral",
+    "date": "2026-10-11",
+    "easy": {
+      "total": 14,
+      "correct": 9,
+      "rulesCorrect": 14
+    },
+    "hard": {
+      "total": 8,
+      "correct": 5,
+      "rulesCorrect": 3
+    },
+    "abstained": 2,
+    "abstainCauses": {
+      "ungrounded": 2
+    },
+    "meanLatencyMs": 7496
+  },
+  "rows": [
+    {
+      "id": "d01",
+      "set": "easy",
+      "expected": "dependency",
+      "got": "dependency",
+      "correct": true,
+      "rules": "dependency",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 17725
+    },
+    {
+      "id": "d02",
+      "set": "easy",
+      "expected": "dependency",
+      "got": "dependency",
+      "correct": true,
+      "rules": "dependency",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 6009
+    },
+    {
+      "id": "d03",
+      "set": "easy",
+      "expected": "permission",
+      "got": "permission",
+      "correct": true,
+      "rules": "permission",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 7938
+    },
+    {
+      "id": "d04",
+      "set": "easy",
+      "expected": "permission",
+      "got": "permission",
+      "correct": true,
+      "rules": "permission",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 8147
+    },
+    {
+      "id": "d05",
+      "set": "easy",
+      "expected": "network",
+      "got": "network",
+      "correct": true,
+      "rules": "network",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 7502
+    },
+    {
+      "id": "d06",
+      "set": "easy",
+      "expected": "network",
+      "got": "network",
+      "correct": true,
+      "rules": "network",
+      "abstainCause": null,
+      "droppedClaims": 1,
+      "ms": 7691
+    },
+    {
+      "id": "d07",
+      "set": "easy",
+      "expected": "network",
+      "got": "runtime",
+      "correct": false,
+      "rules": "network",
+      "abstainCause": null,
+      "droppedClaims": 1,
+      "ms": 7234
+    },
+    {
+      "id": "d08",
+      "set": "easy",
+      "expected": "resource",
+      "got": "abstained",
+      "correct": false,
+      "rules": "resource",
+      "abstainCause": "ungrounded",
+      "droppedClaims": null,
+      "ms": 9506
+    },
+    {
+      "id": "d09",
+      "set": "easy",
+      "expected": "resource",
+      "got": "resource",
+      "correct": true,
+      "rules": "resource",
+      "abstainCause": null,
+      "droppedClaims": 2,
+      "ms": 10171
+    },
+    {
+      "id": "d10",
+      "set": "easy",
+      "expected": "resource",
+      "got": "resource",
+      "correct": true,
+      "rules": "resource",
+      "abstainCause": null,
+      "droppedClaims": 1,
+      "ms": 8957
+    },
+    {
+      "id": "d11",
+      "set": "easy",
+      "expected": "syntax",
+      "got": "abstained",
+      "correct": false,
+      "rules": "syntax",
+      "abstainCause": "ungrounded",
+      "droppedClaims": null,
+      "ms": 5651
+    },
+    {
+      "id": "d12",
+      "set": "easy",
+      "expected": "runtime",
+      "got": "syntax",
+      "correct": false,
+      "rules": "runtime",
+      "abstainCause": null,
+      "droppedClaims": 1,
+      "ms": 7133
+    },
+    {
+      "id": "d13",
+      "set": "easy",
+      "expected": "configuration",
+      "got": "configuration",
+      "correct": true,
+      "rules": "configuration",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 4802
+    },
+    {
+      "id": "d14",
+      "set": "easy",
+      "expected": "unknown",
+      "got": "runtime",
+      "correct": false,
+      "rules": "unknown",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 6658
+    },
+    {
+      "id": "h01",
+      "set": "hard",
+      "expected": "permission",
+      "got": "permission",
+      "correct": true,
+      "rules": "dependency",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 6074
+    },
+    {
+      "id": "h02",
+      "set": "hard",
+      "expected": "resource",
+      "got": "resource",
+      "correct": true,
+      "rules": "network",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 7397
+    },
+    {
+      "id": "h03",
+      "set": "hard",
+      "expected": "configuration",
+      "got": "resource",
+      "correct": false,
+      "rules": "unknown",
+      "abstainCause": null,
+      "droppedClaims": 1,
+      "ms": 7687
+    },
+    {
+      "id": "h04",
+      "set": "hard",
+      "expected": "runtime",
+      "got": "syntax",
+      "correct": false,
+      "rules": "runtime",
+      "abstainCause": null,
+      "droppedClaims": 1,
+      "ms": 6532
+    },
+    {
+      "id": "h05",
+      "set": "hard",
+      "expected": "dependency",
+      "got": "dependency",
+      "correct": true,
+      "rules": "unknown",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 4923
+    },
+    {
+      "id": "h06",
+      "set": "hard",
+      "expected": "resource",
+      "got": "dependency",
+      "correct": false,
+      "rules": "resource",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 6533
+    },
+    {
+      "id": "h07",
+      "set": "hard",
+      "expected": "permission",
+      "got": "permission",
+      "correct": true,
+      "rules": "permission",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 5104
+    },
+    {
+      "id": "h08",
+      "set": "hard",
+      "expected": "runtime",
+      "got": "runtime",
+      "correct": true,
+      "rules": "unknown",
+      "abstainCause": null,
+      "droppedClaims": 0,
+      "ms": 5529
+    }
+  ]
+}

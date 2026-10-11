@@ -133,7 +133,7 @@ function ground(
   if (likelyCauses.length === 0) {
     return {
       abstained: true,
-      cause: 'insufficient_evidence',
+      cause: 'ungrounded',
       reason: 'None of the proposed causes could be tied to quotes from the log.',
     };
   }

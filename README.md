@@ -26,11 +26,23 @@ with a cause, never a crash.
 
 ## Quick start
 
+Default provider is **Ollama**: free, local, nothing leaves your machine.
+
 ```
+ollama pull llama3.2            # or: ollama pull mistral
 npm install
-cp .env.example .env        # add ANTHROPIC_API_KEY (or use `ant auth login`)
 npm run diagnose -- path/to/error.log
 ```
+
+Choose the provider and model with environment variables (see `.env.example`):
+
+| Provider           | Variables                                          | Cost               |
+| ------------------ | -------------------------------------------------- | ------------------ |
+| `ollama` (default) | `OLLAMA_MODEL` (default `llama3.2`), `OLLAMA_HOST` | free, runs locally |
+| `anthropic`        | `ANTHROPIC_API_KEY`, `LLM_MODEL`, `LLM_EFFORT`     | paid API           |
+
+Any other provider only needs to implement the one-method `DiagnosisModel` interface in
+`src/llm/provider.ts`.
 
 ## Checks and evaluation
 
@@ -38,6 +50,7 @@ npm run diagnose -- path/to/error.log
 npm run typecheck && npm run lint && npm run format:check && npm test
 npm run eval:retrieval      # BM25 baseline: Recall@k and MRR
 npm run eval:baseline       # keyword-rules baseline for categories
+npm run eval:llm            # runs the configured model over the labelled logs (writes eval/results/)
 ```
 
 Current baseline numbers (author-written, small sets; see Limitations):
@@ -48,7 +61,21 @@ Current baseline numbers (author-written, small sets; see Limitations):
 | Rules baseline, category accuracy, easy set | 14 / 14                                      |
 | Rules baseline, category accuracy, hard set | 3 / 8 (rules frozen before the hard set ran) |
 
-LLM-based diagnosis has **not** been evaluated yet: it needs an API key and a held-out dataset.
+Local models, same 22 labelled logs, run with `npm run eval:llm` (one machine, RTX 4060 8 GB, temperature 0;
+two runs gave identical scores). A case counts as correct only if the model's category matches (for logs that
+carry no information, abstaining is correct):
+
+| Model (Ollama) | Easy (14) | Hard (8) | Abstained | Mean latency |
+| -------------- | --------- | -------- | --------- | ------------ |
+| llama3.2 (3B)  | 4         | 3        | 6         | about 4.5 s  |
+| mistral (7B)   | 9         | 5        | 2         | about 7.5 s  |
+| rules baseline | 14        | 3        | n/a       | instant      |
+
+Read this carefully: the rules were written while looking at the easy set, so 14/14 there is not
+generalisation, and the sets are tiny. On the hard set mistral (5/8) beat the rules (3/8); on the easy set it did
+not. Every abstention was "ungrounded": the grounding check rejected the answer, the models never said "I cannot
+tell" by themselves, and both guessed a category for a log that contained no information. No hosted model has been
+evaluated.
 
 ## Layout
 

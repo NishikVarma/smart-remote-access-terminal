@@ -60,8 +60,12 @@ export interface Diagnosis {
   redactions: number;
 }
 
+/**
+ * insufficient_evidence: the model itself said the log is not enough.
+ * ungrounded: the model answered, but no claim could be tied to the log.
+ */
 export type AbstainCause =
-  'empty_input' | 'insufficient_evidence' | 'provider_error' | 'invalid_output';
+  'empty_input' | 'insufficient_evidence' | 'ungrounded' | 'provider_error' | 'invalid_output';
 
 export type DiagnosisResult =
   | { abstained: false; diagnosis: Diagnosis }
